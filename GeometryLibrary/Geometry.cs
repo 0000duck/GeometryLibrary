@@ -13,7 +13,7 @@ namespace GeometryLibrary.Geometry
 
     public class Points
     {
-        public class Point : GeometryBase
+        public class Point : GeometryBase,IDimension
         {
             #region operator
             public static Point operator +(Point a)
@@ -142,121 +142,146 @@ namespace GeometryLibrary.Geometry
             public static Point2d Zero = new Point2d(0, 0);
         }
 
-        public class PointList : IList<Point>
-        {
-            private List<Point> Content = new List<Point>();
-
-            public int Dimension { get { return Content[0].Dimension; } }
-
-            public Point this[int index]
-            {
-                get
-                {
-                    return ((IList<Point>)Content)[index];
-                }
-
-                set
-                {
-                    ((IList<Point>)Content)[index] = value;
-                }
-            }
-
-            public int Count
-            {
-                get
-                {
-                    return ((IList<Point>)Content).Count;
-                }
-            }
-
-            public bool IsReadOnly
-            {
-                get
-                {
-                    return ((IList<Point>)Content).IsReadOnly;
-                }
-            }
-
-            public void Add(Point item)
-            {
-                if (this.Count > 0 && item.Dimension != this.Dimension) throw new Exceptions.DimensionMismatchException();
-                ((IList<Point>)Content).Add(item);
-            }
-
-            public void Clear()
-            {
-                ((IList<Point>)Content).Clear();
-            }
-
-            public bool Contains(Point item)
-            {
-                return ((IList<Point>)Content).Contains(item);
-            }
-
-            public void CopyTo(Point[] array, int arrayIndex)
-            {
-                ((IList<Point>)Content).CopyTo(array, arrayIndex);
-            }
-
-            public IEnumerator<Point> GetEnumerator()
-            {
-                return ((IList<Point>)Content).GetEnumerator();
-            }
-
-            public int IndexOf(Point item)
-            {
-                return ((IList<Point>)Content).IndexOf(item);
-            }
-
-            public void Insert(int index, Point item)
-            {
-                if (this.Count > 0 && item.Dimension != this.Dimension) throw new Exceptions.DimensionMismatchException();
-                ((IList<Point>)Content).Insert(index, item);
-            }
-
-            public bool Remove(Point item)
-            {
-                return ((IList<Point>)Content).Remove(item);
-            }
-
-            public void RemoveAt(int index)
-            {
-                ((IList<Point>)Content).RemoveAt(index);
-            }
-
-            IEnumerator IEnumerable.GetEnumerator()
-            {
-                return ((IList<Point>)Content).GetEnumerator();
-            }
-        }
     }
 
     public class Domain
     {
-        public double From;
-        public double To;
+        public double A = 0;
+        public double B = 1;
+        public bool AEqual = true;
+        public bool BEqual = true;
 
-        public Domain(double From,double To)
+        public double Minimum { get { return Math.Min(A, B); } }
+        public double Maximum { get { return Math.Max(A, B); } }
+
+        public Domain(double A,double B,bool AEqual=true,bool BEqual=true)
         {
-            this.From = From;
-            this.To = To;
+            this.A = A;
+            this.B = B;
+            this.AEqual = AEqual;
+            this.BEqual = BEqual;
+        }
+
+        public bool Containts(double value)
+        {
+            return (Minimum < value && Maximum < value) || (AEqual && A == value) || (BEqual && B == value);
         }
     }
 
+    public interface IDimension
+    {
+        int Dimension { get; }
+    }
+
+    public class DimensionList<T> : IList<T>, IDimension where T : IDimension
+    {
+        private List<T> Content = new List<T>();
+
+        public int Dimension { get { return Content.Count == 0 ? 0 : Content[0].Dimension; } }
+
+        public T this[int index]
+        {
+            get
+            {
+                return ((IList<T>)Content)[index];
+            }
+
+            set
+            {
+                ((IList<T>)Content)[index] = value;
+            }
+        }
+
+        public int Count
+        {
+            get
+            {
+                return ((IList<T>)Content).Count;
+            }
+        }
+
+        public bool IsReadOnly
+        {
+            get
+            {
+                return ((IList<T>)Content).IsReadOnly;
+            }
+        }
+
+        public void Add(T item)
+        {
+            if (this.Count > 0 && item.Dimension != this.Dimension) throw new Exceptions.DimensionMismatchException();
+            ((IList<T>)Content).Add(item);
+        }
+
+        public void Clear()
+        {
+            ((IList<T>)Content).Clear();
+        }
+
+        public bool Contains(T item)
+        {
+            return ((IList<T>)Content).Contains(item);
+        }
+
+        public void CopyTo(T[] array, int arrayIndex)
+        {
+            ((IList<T>)Content).CopyTo(array, arrayIndex);
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            return ((IList<T>)Content).GetEnumerator();
+        }
+
+        public int IndexOf(T item)
+        {
+            return ((IList<T>)Content).IndexOf(item);
+        }
+
+        public void Insert(int index, T item)
+        {
+            if (this.Count > 0 && item.Dimension != this.Dimension) throw new Exceptions.DimensionMismatchException();
+            ((IList<T>)Content).Insert(index, item);
+        }
+
+        public bool Remove(T item)
+        {
+            return ((IList<T>)Content).Remove(item);
+        }
+
+        public void RemoveAt(int index)
+        {
+            ((IList<T>)Content).RemoveAt(index);
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return ((IList<T>)Content).GetEnumerator();
+        }
+    }
+
+
     public class Curves
     {
-        public class BasisSprine
+        public interface ICurve
         {
-            public Points.PointList ControlPoints = new Points.PointList();
+            Points.Point PointAt(double t);
+            Domain Domain { get; }
+        }
+
+        public class BasisSprine:ICurve
+        {
+            public DimensionList<Points.Point> ControlPoints = new DimensionList<Points.Point>();
             public List<double> Knot = new List<double>();
-            public int Dimension;
+            public int Degree = 1;
 
             public Domain Domain
             {
                 get
                 {
                     var knots = GetSortedKnot();
-                    return new Domain(knots[Dimension], knots[knots.Count() - Dimension - 1]);
+                    return new Domain(knots[Degree], knots[knots.Count() - Degree - 1]);
                 }
             }
 
@@ -268,38 +293,78 @@ namespace GeometryLibrary.Geometry
             public Points.Point PointAt(double t)
             {
                 var knots = GetSortedKnot();
-                if (t < knots[Dimension] || knots[knots.Count() - Dimension - 1] < t) { return null; }
+                if (t < knots[Degree] || knots[knots.Count() - Degree - 1] < t) { return null; }
                 var result = Points.Point.GetZero(ControlPoints.Dimension);
-                for (int i = 0; i < Knot.Count()-Dimension; i++)
+                for (int i = 0; i < Knot.Count()-Degree; i++)
                 {
-                    result += ControlPoints[i] * DeBoorCoxAlgorithm(i, Dimension, t, knots);
+                    result += ControlPoints[i] * Functions.DeBoorCoxAlgorithm(i, Degree, t, knots);
                 }
                 return result;
             }
+        }
 
-            public static double DeBoorCoxAlgorithm(int j,int n,double t,double[] ts)
+        public class NurbsCurve:ICurve
+        {
+            public DimensionList<PointWeightPair> ControlPoints = new DimensionList<PointWeightPair>();
+            public int Degree = 1;
+            public List<double> Knot = new List<double>();
+
+            public double[] GetSortedKnot()
             {
-                if (n == 0)
+                return Knot.OrderBy(d => d).ToArray();
+            }
+
+            public Domain Domain
+            {
+                get; set;
+            } = new Domain(0, 1);
+
+            public Points.Point PointAt(double t)
+            {
+                if (!Domain.Containts(t)) return null;
+                if (!IsValid()) return null;
+                var a = Points.Point.GetZero(ControlPoints.Dimension);
+                double b = 0;
+                var knot = GetSortedKnot();
+                for(int i = 0; i < ControlPoints.Count; i++)
                 {
-                    if (0 <= j && j <= ts.Count() - 2)
-                    {
-                        return (ts[j] <= t && t < ts[j + 1]) ? 1 : 0;
-                    }
-                    else {
-                        throw new IndexOutOfRangeException();
-                    }
+                    double c = Functions.DeBoorCoxAlgorithm(i, ControlPoints.Count, t, knot) * ControlPoints[i].Weight;
+                    a += c * ControlPoints[i].Point;
+                    b += c;
                 }
-                else
+                return a / b;
+            }
+
+            public bool IsValid()
+            {
+                if (Knot.Count != Degree + ControlPoints.Count) return false;
+                return true;
+            }
+        }
+
+        public struct PointWeightPair:IDimension
+        {
+            public int Dimension { get { return Point.Dimension; } }
+
+            public Points.Point Point;
+            public double Weight;
+        }
+
+
+        public class BezierCurve : ICurve
+        {
+            public DimensionList<Points.Point> ControlPoints = new DimensionList<Points.Point>();
+
+            public Domain Domain { get; set; } = new Domain(0, 1);
+
+            public Points.Point PointAt(double t)
+            {
+                var result = Points.Point.GetZero(ControlPoints.Dimension);
+                for(int i = 0; i < ControlPoints.Count; i++)
                 {
-                    if (0 <= j && j <= ts.Count() - n - 2)
-                    {
-                        return (t - ts[j]) / (ts[j + n] - ts[j]) * DeBoorCoxAlgorithm(j, n - 1, t, ts) + (ts[j + n + 1] - t) / (ts[j + n + 1] - ts[j + 1]) * DeBoorCoxAlgorithm(j + 1, n - 1, t, ts);
-                    }
-                    else
-                    {
-                        throw new IndexOutOfRangeException();
-                    }
+                    result += ControlPoints[i] * Functions.BernsteinBasisPolynomials(ControlPoints.Count - 1, i, t);
                 }
+                return result;
             }
         }
     }
